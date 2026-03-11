@@ -2,24 +2,49 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>MauroPro</title>
   <meta name="theme-color" content="#0e1629" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50:'#ecfeff', 100:'#cffafe', 200:'#a5f3fc', 300:'#67e8f9', 400:'#22d3ee', 500:'#06b6d4', 600:'#0891b2', 700:'#0e7490', 800:'#155e75', 900:'#164e63' }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    * { -webkit-tap-highlight-color: transparent; }
-    body { margin: 0; padding: 0; background: #f1f5f9; overflow: hidden; }
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    html, body, #root { margin:0; padding:0; height:100%; width:100%; overflow:hidden; background:#e8f0f6; font-family:'Plus Jakarta Sans',system-ui,sans-serif; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes fadeSlideIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .animate-fade-slide { animation: fadeSlideIn 0.2s ease-out; }
+    @keyframes fadeSlideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    .animate-fade-slide { animation: fadeSlideIn 0.22s ease-out; }
     .animate-spin { animation: spin 1s linear infinite; }
-    .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .line-clamp-1 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; }
+    .line-clamp-2 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px); }
+    .bg-frost { background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    .bg-app { background: linear-gradient(180deg, #e3f1fa 0%, #f0f6fb 30%, #f8fbff 100%); }
+    /* MauroPro Logo SVG as inline background */
+    .logo-mark { display:inline-flex; align-items:center; justify-content:center; }
   </style>
 </head>
 <body>
@@ -29,10 +54,10 @@
     const { useState, useEffect, useRef, Fragment } = React;
 
     // --- Lucide Icon Helper ---
-    function I({ n, c = 'h-5 w-5', sw = 2, f = 'none' }) {
+    function I({ n, c='h-5 w-5', sw=2, f='none' }) {
       const ref = useRef(null);
       useEffect(() => {
-        if (ref.current) {
+        if (ref.current && lucide.icons[n]) {
           ref.current.innerHTML = '';
           const el = lucide.createElement(lucide.icons[n]);
           el.setAttribute('class', c);
@@ -44,19 +69,29 @@
       return <span ref={ref} className="inline-flex items-center justify-center" />;
     }
 
+    // --- MauroPro Logo Component ---
+    function Logo({ size = 48, className = '' }) {
+      return (
+        <svg viewBox="0 0 120 80" width={size} height={size * 0.67} className={className}>
+          <path d="M20 70 L20 35 L40 18 L60 35 L60 70" fill="none" stroke="#155e75" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M60 70 L60 35 L80 18 L100 35 L100 70" fill="none" stroke="#155e75" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    }
+
     // --- GEMINI API ---
     const apiKey = "";
     const callGeminiAPI = async (prompt) => {
       if (!apiKey) return "⚠️ API key non configurata. Inserisci la tua Gemini API key nella variabile 'apiKey'.";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-      const attemptFetch = async (retries = 3, delay = 1000) => {
+      const attemptFetch = async (retries=3, delay=1000) => {
         try {
-          const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+          const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}) });
           if (!res.ok) throw new Error(`API Error: ${res.status}`);
           const data = await res.json();
           return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         } catch (err) {
-          if (retries > 0) { await new Promise(r => setTimeout(r, delay)); return attemptFetch(retries - 1, delay * 2); }
+          if (retries > 0) { await new Promise(r=>setTimeout(r,delay)); return attemptFetch(retries-1,delay*2); }
           return "Errore di connessione con l'AI. Riprova più tardi.";
         }
       };
@@ -64,61 +99,74 @@
     };
 
     // --- UI PRIMITIVES ---
-    const Card = ({ className = '', children, style, ...props }) => <div className={`rounded-xl border bg-white text-slate-800 shadow ${className}`} style={style} {...props}>{children}</div>;
-    const CardContent = ({ className = '', children, ...props }) => <div className={`p-6 pt-0 ${className}`} {...props}>{children}</div>;
-    const Button = ({ className = '', variant = 'default', children, ...props }) => {
-      const v = { default: "bg-slate-900 text-white hover:bg-slate-900/90", outline: "border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900", ghost: "hover:bg-slate-100 hover:text-slate-900" };
-      return <button className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer ${v[variant]} ${className}`} {...props}>{children}</button>;
+    const Card = ({ className='', children, style, ...props }) => <div className={`rounded-2xl bg-white text-slate-800 shadow-sm ${className}`} style={style} {...props}>{children}</div>;
+    const CardContent = ({ className='', children, ...props }) => <div className={`p-4 ${className}`} {...props}>{children}</div>;
+    const Button = ({ className='', variant='default', children, ...props }) => {
+      const v = { default:"bg-brand-500 text-white hover:bg-brand-600 active:scale-[0.97]", outline:"border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 active:scale-[0.97]", ghost:"hover:bg-slate-100 text-slate-700" };
+      return <button className={`inline-flex items-center justify-center rounded-2xl text-[15px] font-bold transition-all cursor-pointer ${v[variant]} ${className}`} {...props}>{children}</button>;
     };
-    const Input = ({ className = '', ...props }) => <input className={`flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 ${className}`} {...props} />;
-    const Progress = ({ value, className = '' }) => <div className={`relative w-full overflow-hidden bg-slate-200 ${className}`}><div className="h-full transition-all duration-500" style={{ width: `${value||0}%`, backgroundColor: 'currentColor' }} /></div>;
-    const Avatar = ({ className = '', children }) => <div className={`relative flex shrink-0 overflow-hidden rounded-full ${className}`}>{children}</div>;
-    const AvatarFallback = ({ className = '', children }) => <div className={`flex h-full w-full items-center justify-center rounded-full bg-slate-100 ${className}`}>{children}</div>;
-    const Badge = ({ className = '', children }) => <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}>{children}</div>;
+    const Input = ({ className='', ...props }) => <input className={`flex h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent ${className}`} {...props} />;
+    const Progress = ({ value, className='' }) => <div className={`relative w-full overflow-hidden bg-brand-100 ${className}`}><div className="h-full rounded-full transition-all duration-500 bg-brand-500" style={{width:`${value||0}%`}} /></div>;
+    const Avatar = ({ className='', children }) => <div className={`relative flex shrink-0 overflow-hidden rounded-full ${className}`}>{children}</div>;
+    const AvatarFallback = ({ className='', children }) => <div className={`flex h-full w-full items-center justify-center rounded-full ${className}`}>{children}</div>;
+    const Badge = ({ className='', children }) => <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${className}`}>{children}</div>;
     const Spinner = () => <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>;
 
     // --- DATA ---
-    const wrap = 'mx-auto w-full max-w-[430px] min-h-full bg-gradient-to-b from-sky-50 via-white to-slate-100 text-slate-800 relative';
-    const pad = 'px-4 pb-24 pt-4';
-
     const requests = [
-      { id:1, category:'Elettrico', title:'Salvavita che scatta', address:'Via Garibaldi 31, Pescara', time:'10:45', date:'19/01/26', description:'Il salvavita scatta continuamente da questa mattina. Non ho più corrente in casa. Necessaria una verifica e una riparazione urgente.', reward:'€ 80-120', icon:'Wrench', accent:'bg-cyan-500', tint:'bg-cyan-50' },
-      { id:2, category:'Idraulico', title:'WC otturato', address:'Via Mazzini 12, Pescara', time:'11:30', date:'19/01/26', description:'Scarico bloccato, acqua che non scende nel bagno principale. Richiesto intervento rapido in giornata.', reward:'€ 70-110', icon:'Droplets', accent:'bg-sky-500', tint:'bg-sky-50' },
-      { id:3, category:'Serrature', title:'Serratura rotta', address:'Viale Bovio 44, Pescara', time:'15:20', date:'19/01/26', description:'Chiave che gira a vuoto. Porta blindata principale bloccata. Non riesco ad entrare in casa.', reward:'€ 90-140', icon:'KeyRound', accent:'bg-indigo-500', tint:'bg-indigo-50' },
+      { id:1, category:'Elettrico', title:'Salvavita che scatta', address:'Via Garibaldi 31, Pescara', time:'10:45', date:'19/01/26', description:'Il salvavita scatta continuamente da questa mattina. Non ho più corrente in casa. Necessaria una verifica e una riparazione urgente.', reward:'€ 80-120', icon:'Wrench', accent:'bg-brand-500', tint:'bg-brand-50', gradient:'from-brand-400/20 to-brand-600/10' },
+      { id:2, category:'Idraulico', title:'WC otturato', address:'Via Mazzini 12, Pescara', time:'11:30', date:'19/01/26', description:'Scarico bloccato, acqua che non scende nel bagno principale. Richiesto intervento rapido in giornata.', reward:'€ 70-110', icon:'Droplets', accent:'bg-sky-500', tint:'bg-sky-50', gradient:'from-sky-400/20 to-sky-600/10' },
+      { id:3, category:'Serrature', title:'Serratura rotta', address:'Viale Bovio 44, Pescara', time:'15:20', date:'19/01/26', description:'Chiave che gira a vuoto. Porta blindata principale bloccata. Non riesco ad entrare in casa.', reward:'€ 90-140', icon:'KeyRound', accent:'bg-indigo-500', tint:'bg-indigo-50', gradient:'from-indigo-400/20 to-indigo-600/10' },
     ];
 
     const levels = [
       { id:1, title:'Livello 1', text:'Account creato, sei pronto a lavorare.', done:true },
-      { id:2, title:'Livello 2', text:"Carica l'assicurazione e le certificazioni e prendi più lavori.", done:false, cta:'Completa ora' },
+      { id:2, title:'Livello 2', text:"Carica l'assicurazione e certificazioni e prendi più lavori.", done:false, cta:'Completa' },
       { id:3, title:'Livello 3', text:'100 lavori completati + requisiti livello 2.', done:false, locked:true },
-      { id:4, title:'Livello 4', text:'250 lavori completati, rating 4.8+ e profilo premium verificato.', done:false, locked:true },
-      { id:5, title:'Livello 5', text:'500 lavori completati, tempi di risposta top e zero contestazioni recenti.', done:false, locked:true },
+      { id:4, title:'Livello 4', text:'250 lavori completati, rating 4.8+ e profilo premium.', done:false, locked:true },
+      { id:5, title:'Livello 5', text:'500 lavori completati, tempi top e zero contestazioni.', done:false, locked:true },
     ];
 
-    // --- SCREENS ---
-    function StatusBar() {
+    // --- LAYOUT SHELL ---
+    function AppShell({ children, showNav=true, activeNav='home', onNav=()=>{} }) {
       return (
-        <div className="flex items-center justify-between px-5 pt-3 text-[15px] font-medium text-slate-700 z-50 relative">
+        <div className="w-full h-full flex flex-col bg-app relative">
+          <div className="flex-1 overflow-y-auto no-scrollbar" style={{paddingBottom: showNav ? '80px' : '0'}}>
+            {children}
+          </div>
+          {showNav && <BottomNav active={activeNav} onChange={onNav} />}
+        </div>
+      );
+    }
+
+    // --- STATUS BAR ---
+    function StatusBar({ light=false }) {
+      const col = light ? 'text-white' : 'text-slate-800';
+      return (
+        <div className={`flex items-center justify-between px-6 pt-3 pb-1 text-[15px] font-semibold ${col} z-50 relative`}>
           <span>9:30</span>
-          <div className="flex items-center gap-1.5 text-xs">
-            <div className="h-2.5 w-1 rounded-full bg-slate-800 opacity-60"/><div className="h-3.5 w-1 rounded-full bg-slate-800 opacity-70"/><div className="h-[18px] w-1 rounded-full bg-slate-800 opacity-80"/><div className="h-[22px] w-1 rounded-full bg-slate-800"/>
-            <div className="ml-1 h-3 w-4 rounded-[2px] border border-slate-800"/>
+          <div className="flex items-center gap-1">
+            <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx="1" opacity="0.4"/><rect x="4.5" y="3.5" width="3" height="8.5" rx="1" opacity="0.6"/><rect x="9" y="1.5" width="3" height="10.5" rx="1" opacity="0.8"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor" className="ml-1"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.9l1.2-1.2C12.2 2.7 10.2 1.8 8 1.8S3.8 2.7 2.2 4.3l1.2 1.2C4.6 4.3 6.2 3.6 8 3.6zm0 3.6c1 0 1.9.4 2.6 1l1.2-1.2c-.9-.9-2.2-1.4-3.8-1.4S4.3 6 3.4 6.9l1.2 1.2c.7-.6 1.6-1 2.6-1zM8 10.8l1.6-1.6c-.4-.4-1-.7-1.6-.7s-1.2.3-1.6.7L8 10.8z"/></svg>
+            <div className="ml-1.5 flex items-center"><div className="w-[22px] h-[11px] rounded-[3px] border-2 border-current relative"><div className="absolute inset-[2px] rounded-[1px] bg-current" style={{width:'60%'}}/></div></div>
           </div>
         </div>
       );
     }
 
+    // --- SCREENS ---
     function SplashScreen({ onNext }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className="flex h-full min-h-[760px] flex-col items-center justify-center px-10">
-            <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center rounded-[28px] bg-slate-700 text-white shadow-lg"><span className="text-5xl font-black">m</span></div>
-              <div className="text-5xl font-black tracking-tight text-slate-700">Mauro<span className="text-cyan-500">Pro</span></div>
-              <div className="mt-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Professional platform</div>
-            </div>
-            <div className="w-full max-w-[260px] text-cyan-500"><Progress value={65} className="h-2.5 rounded-full"/></div>
-            <Button onClick={onNext} className="mt-10 rounded-2xl bg-cyan-500 px-8 py-6 text-base hover:bg-cyan-600">Continua</Button>
+        <div className="flex flex-col items-center justify-center h-full px-10 bg-app">
+          <StatusBar />
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="animate-float mb-2"><Logo size={100} /></div>
+            <div className="text-5xl font-black tracking-tight text-slate-800">Mauro<span className="text-brand-500">Pro</span></div>
+            <div className="mt-2 text-sm font-bold uppercase tracking-widest text-slate-400">Professional platform</div>
+            <div className="w-48 mt-10"><Progress value={65} className="h-2 rounded-full" /></div>
+          </div>
+          <div className="w-full px-2 pb-10">
+            <Button onClick={onNext} className="h-14 w-full shadow-lg shadow-brand-500/20">Continua</Button>
           </div>
         </div>
       );
@@ -126,34 +174,35 @@
 
     function AuthScreen({ authTab, setAuthTab, onContinue }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className="relative overflow-hidden min-h-screen">
-            <div className="absolute inset-x-0 top-0 h-56" style={{background:'linear-gradient(180deg,rgba(30,64,175,0.75),rgba(6,182,212,0.45))'}}/>
-            <div className="relative px-6 pt-10 text-center text-white">
-              <div className="text-5xl font-black tracking-tight">Mauro<span className="text-cyan-300">Pro</span></div>
-              <div className="mt-2 text-sm font-semibold uppercase tracking-wide text-white/90">Professional platform</div>
+        <div className="flex flex-col h-full">
+          <div className="relative h-52 overflow-hidden" style={{background:'linear-gradient(135deg,#0e7490,#06b6d4)'}}>
+            <StatusBar light />
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <Logo size={72} className="[&_path]:stroke-white opacity-90" />
+              <div className="text-3xl font-black tracking-tight text-white mt-1">Mauro<span className="text-brand-200">Pro</span></div>
             </div>
-            <div className="relative mt-16 rounded-t-[34px] bg-white px-5 pb-10 pt-6 shadow-2xl h-full">
-              <div className="mb-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <button onClick={() => setAuthTab('login')} className={`rounded-xl px-4 py-3 text-base font-semibold ${authTab==='login'?'bg-cyan-500 text-white shadow':'text-slate-600'}`}>Login</button>
-                <button onClick={() => setAuthTab('register')} className={`rounded-xl px-4 py-3 text-base font-semibold ${authTab==='register'?'bg-cyan-500 text-white shadow':'text-slate-600'}`}>Registrazione</button>
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-white rounded-t-[28px]" />
+          </div>
+          <div className="flex-1 bg-white px-5 pb-8 -mt-1">
+            <div className="mb-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+              <button onClick={()=>setAuthTab('login')} className={`rounded-xl px-4 py-3 text-[15px] font-bold transition-all ${authTab==='login'?'bg-brand-500 text-white shadow-md':'text-slate-500'}`}>Login</button>
+              <button onClick={()=>setAuthTab('register')} className={`rounded-xl px-4 py-3 text-[15px] font-bold transition-all ${authTab==='register'?'bg-brand-500 text-white shadow-md':'text-slate-500'}`}>Registrati</button>
+            </div>
+            {authTab==='login' ? (
+              <div className="space-y-4">
+                <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2"><I n="User" c="h-5 w-5 text-slate-400"/></span><Input className="pl-12 bg-slate-50" placeholder="Email"/></div>
+                <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2"><I n="Lock" c="h-5 w-5 text-slate-400"/></span><Input className="pl-12 bg-slate-50" placeholder="Password" type="password"/></div>
+                <div className="text-right text-sm text-slate-500">Password dimenticata? <span className="font-bold text-brand-600 cursor-pointer uppercase tracking-wide text-xs">RECUPERO</span></div>
+                <Button onClick={onContinue} className="h-14 w-full shadow-lg shadow-brand-500/20">Login</Button>
               </div>
-              {authTab==='login' ? (
-                <div className="space-y-4">
-                  <Input className="h-14 rounded-2xl border-slate-200 bg-slate-50" placeholder="Email"/>
-                  <Input className="h-14 rounded-2xl border-slate-200 bg-slate-50" placeholder="Password" type="password"/>
-                  <div className="text-right text-sm text-slate-500">Password dimenticata? <span className="font-semibold text-cyan-600 cursor-pointer hover:underline">Recupero</span></div>
-                  <Button onClick={onContinue} className="h-14 w-full rounded-2xl bg-cyan-500 text-base hover:bg-cyan-600 text-white">Login</Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50"><div className="text-lg font-semibold text-slate-800">Cliente</div><div className="mt-1 text-sm text-slate-500">Pubblica richieste e trova il professionista giusto.</div></div>
-                  <div className="rounded-2xl border border-cyan-300 bg-cyan-50 p-4 cursor-pointer"><div className="text-lg font-semibold text-slate-800">Professionista</div><div className="mt-1 text-sm text-slate-500">Ricevi lavori, cresci di livello e gestisci il tuo profilo.</div></div>
-                  <Button onClick={onContinue} className="h-14 w-full rounded-2xl bg-cyan-500 text-base hover:bg-cyan-600 text-white">Continua</Button>
-                </div>
-              )}
-              <div className="mt-20 text-center text-sm text-slate-400 pb-8">Vers 1.2556 <span className="font-semibold text-cyan-600 cursor-pointer">INFO</span></div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <button className="w-full rounded-2xl border-2 border-slate-200 p-4 text-left hover:bg-slate-50 transition"><div className="text-lg font-bold text-slate-800">Cliente</div><div className="mt-1 text-sm text-slate-500">Pubblica richieste e trova il professionista giusto.</div></button>
+                <button className="w-full rounded-2xl border-2 border-brand-300 bg-brand-50 p-4 text-left"><div className="text-lg font-bold text-slate-800">Professionista</div><div className="mt-1 text-sm text-slate-500">Ricevi lavori, cresci di livello e gestisci il tuo profilo.</div></button>
+                <Button onClick={onContinue} className="h-14 w-full shadow-lg shadow-brand-500/20">Continua</Button>
+              </div>
+            )}
+            <div className="mt-16 text-center text-sm text-slate-400">Vers 1.2556 <span className="font-bold text-brand-600 cursor-pointer">INFO</span></div>
           </div>
         </div>
       );
@@ -161,79 +210,103 @@
 
     function OnboardingStep({ step, title, text, onNext, cta='Continua' }) {
       const icons = {1:'Wrench',2:'Search',3:'BadgeCheck'};
+      const emojis = {1:'🔧',2:'📱',3:'💰'};
       return (
-        <div className={wrap}><StatusBar />
-          <div className={`${pad} flex flex-col h-full min-h-[760px]`}>
-            <div className="text-right text-sm font-semibold text-cyan-600 cursor-pointer" onClick={onNext}>Salta</div>
-            <div className="mt-4 flex-1 flex flex-col justify-center rounded-[32px] px-6 pb-8 pt-6 text-center shadow-sm" style={{background:'radial-gradient(circle at top,rgba(186,230,253,0.8),white 55%)'}}>
-              <div className="mx-auto mb-6 flex h-56 w-56 items-center justify-center rounded-full bg-sky-100 shadow-inner"><I n={icons[step]} c="h-20 w-20 text-cyan-500"/></div>
-              <h2 className="text-[32px] font-bold leading-tight text-slate-800">{title}</h2>
-              <p className="mt-4 text-lg leading-8 text-slate-600">{text}</p>
-              <div className="mt-auto pt-6 flex flex-col items-center">
-                <div className="flex items-center justify-center gap-2 mb-8">{[1,2,3].map(i=><span key={i} className={`h-2.5 rounded-full transition-all ${i===step?'w-8 bg-cyan-500':'w-2.5 bg-slate-300'}`}/>)}</div>
-                <Button onClick={onNext} className="h-14 w-full rounded-2xl bg-cyan-500 text-base hover:bg-cyan-600 text-white">{cta}</Button>
+        <div className="flex flex-col h-full bg-app">
+          <StatusBar />
+          <div className="flex-1 flex flex-col px-6 pt-2">
+            <div className="text-right"><button onClick={onNext} className="text-sm font-bold text-brand-600 cursor-pointer px-2 py-1">Salta</button></div>
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
+              <div className="mb-8 w-48 h-48 rounded-full bg-gradient-to-br from-brand-100 to-sky-100 flex items-center justify-center shadow-inner">
+                <span className="text-7xl">{emojis[step]}</span>
               </div>
+              <h2 className="text-[26px] font-black leading-tight text-slate-800 px-2">{title}</h2>
+              <p className="mt-4 text-[16px] leading-7 text-slate-500 font-medium px-4">{text}</p>
+            </div>
+            <div className="pb-10 pt-4">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                {[1,2,3].map(i=><span key={i} className={`h-2.5 rounded-full transition-all ${i===step?'w-8 bg-brand-500':'w-2.5 bg-slate-300'}`}/>)}
+              </div>
+              <Button onClick={onNext} className="h-14 w-full shadow-lg shadow-brand-500/20">{cta}</Button>
             </div>
           </div>
         </div>
       );
     }
 
-    function HomeScreen({ onOpenRequest, onNotifications, onProfile, onLevels }) {
+    function HomeScreen({ onOpenRequest, onNotifications, onProfile, onLevels, onNav }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className={pad}>
-            <div className="rounded-b-[28px] rounded-t-[22px] p-4 shadow-sm" style={{background:'linear-gradient(180deg,rgba(224,242,254,1),rgba(255,255,255,0.9))'}}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-3xl font-bold text-slate-800"><I n="Moon" c="h-6 w-6 text-amber-400" f="rgb(251,191,36)"/> Buonasera, Teo</div>
-                  <div className="mt-2 flex items-center gap-2 text-base text-slate-600"><I n="MapPin" c="h-4 w-4 text-cyan-500"/> Pescara · 3 richieste vicino a te</div>
-                </div>
-                <button onClick={onNotifications} className="rounded-2xl bg-white p-3 shadow-sm relative">
-                  <I n="Bell" c="h-5 w-5 text-cyan-500"/><span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"/>
-                </button>
+        <AppShell activeNav="home" onNav={onNav}>
+          <StatusBar />
+          <div className="px-4 pt-2 pb-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2 text-[26px] font-black text-slate-800"><I n="Moon" c="h-6 w-6 text-amber-400" f="rgb(251,191,36)"/> Buonasera, Teo</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[15px] text-slate-500 font-medium"><I n="MapPin" c="h-4 w-4 text-brand-500"/> Pescara · 3 richieste vicino a te</div>
               </div>
-              <div className="mt-4 flex gap-2">
-                <div className="relative flex-1"><span className="absolute left-4 top-1/2 -translate-y-1/2"><I n="Search" c="h-5 w-5 text-slate-400"/></span><Input className="h-12 rounded-2xl border-0 bg-white pl-11 shadow-sm" placeholder="Cerca richieste..."/></div>
-                <button className="rounded-2xl bg-white px-4 shadow-sm flex items-center"><I n="Filter" c="h-5 w-5 text-slate-500"/></button>
-              </div>
+              <button onClick={onNotifications} className="rounded-2xl bg-white p-3 shadow-sm relative border border-slate-100">
+                <I n="Bell" c="h-5 w-5 text-brand-600"/>
+                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"/>
+              </button>
             </div>
-            <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {['Nuove richieste','Elettrico','Idraulico','Serrature'].map((t,i)=><Badge key={t} className={`${i===0?'bg-cyan-100 text-cyan-700':'bg-white text-slate-700'} rounded-full px-4 py-2 text-sm font-semibold border-0 shadow-sm whitespace-nowrap`}>{i===0&&<span className="mr-1">🔥</span>} {t}</Badge>)}
+
+            {/* Search */}
+            <div className="flex gap-2 mb-4">
+              <div className="relative flex-1"><span className="absolute left-4 top-1/2 -translate-y-1/2"><I n="Search" c="h-5 w-5 text-slate-400"/></span><Input className="pl-12 h-12 bg-white border-slate-100" placeholder="Cerca richieste..."/></div>
+              <button className="rounded-2xl bg-white px-4 shadow-sm flex items-center border border-slate-100"><I n="SlidersHorizontal" c="h-5 w-5 text-slate-500"/></button>
             </div>
-            <Card className="mt-4 rounded-[24px] border-0 bg-amber-50 shadow-sm border border-amber-100">
-              <CardContent className="flex items-center justify-between p-4 pt-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-amber-100 p-2 rounded-full mt-1"><I n="Star" c="h-5 w-5 text-amber-500" f="rgb(245,158,11)"/></div>
-                  <div><div className="text-[15px] font-bold text-slate-800">Consiglio del giorno</div><div className="mt-0.5 text-sm leading-tight text-slate-600 pr-2">Rispondi entro 5 minuti per aumentare le probabilità di assegnazione.</div></div>
+
+            {/* Tags */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {['🔥 Nuove richieste','Elettrico','Idraulico','Serrature'].map((t,i)=><Badge key={t} className={`${i===0?'bg-brand-500 text-white':'bg-white text-slate-600 border border-slate-100'} rounded-full px-4 py-2.5 text-[13px] whitespace-nowrap shadow-sm`}>{t}</Badge>)}
+            </div>
+
+            {/* Tip Card */}
+            <Card className="mt-4 bg-amber-50/80 border border-amber-100">
+              <CardContent className="flex items-center gap-3 py-3">
+                <div className="bg-amber-100 p-2.5 rounded-2xl"><span className="text-xl">💡</span></div>
+                <div className="flex-1">
+                  <div className="text-[14px] font-bold text-slate-800">Consiglio del giorno</div>
+                  <div className="text-[13px] text-slate-600 leading-snug mt-0.5">Rispondi entro 5 minuti per aumentare le probabilità di assegnazione.</div>
                 </div>
-                <I n="ChevronRight" c="h-5 w-5 text-slate-400 shrink-0"/>
+                <I n="ChevronRight" c="h-5 w-5 text-slate-400"/>
               </CardContent>
             </Card>
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-xl font-bold text-slate-800">Nuove richieste</div>
-              <button onClick={onLevels} className="text-sm font-semibold text-cyan-600 hover:underline cursor-pointer">Livelli Pro</button>
+
+            {/* Section Header */}
+            <div className="mt-6 mb-3 flex items-center justify-between">
+              <div className="text-xl font-black text-slate-800">Nuove richieste</div>
+              <button onClick={onLevels} className="text-[13px] font-bold text-brand-600 cursor-pointer">Livelli Pro →</button>
             </div>
-            <div className="mt-3 space-y-4">
+
+            {/* Request Cards */}
+            <div className="space-y-3">
               {requests.map(r=>(
-                <button key={r.id} onClick={()=>onOpenRequest(r)} className="w-full text-left outline-none rounded-[26px]">
-                  <Card className="overflow-hidden rounded-[26px] border-0 bg-white shadow-sm transition hover:shadow-md">
+                <button key={r.id} onClick={()=>onOpenRequest(r)} className="w-full text-left outline-none">
+                  <Card className={`overflow-hidden border border-slate-100 transition-all hover:shadow-md active:scale-[0.98]`}>
                     <CardContent className="p-0">
                       <div className="flex items-stretch">
-                        <div className={`w-2 ${r.accent}`}/>
+                        <div className={`w-1.5 rounded-l-2xl ${r.accent}`}/>
                         <div className="flex-1 p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <Badge className={`${r.tint} mb-2 rounded-full px-3 py-1 text-xs font-bold text-slate-700 border-0`}>{r.category}</Badge>
-                              <div className="text-[22px] leading-tight font-bold text-slate-800">{r.title}</div>
-                              <div className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500"><I n="MapPin" c="h-3.5 w-3.5"/> {r.address}</div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <Badge className={`${r.tint} text-slate-700 mb-2`}>{r.category}</Badge>
+                              <div className="text-[20px] leading-tight font-bold text-slate-800">{r.title}</div>
+                              <div className="mt-1.5 flex items-center gap-1.5 text-[13px] text-slate-500"><I n="MapPin" c="h-3.5 w-3.5"/> {r.address}</div>
+                              <div className="mt-2 text-[13px] text-slate-400 line-clamp-2">{r.description}</div>
                             </div>
-                            <div className="text-right text-sm text-slate-500"><div>{r.date}</div><div className="mt-1 font-semibold text-slate-700">{r.time}</div></div>
+                            <div className="text-right text-[13px] text-slate-500 shrink-0 ml-2">
+                              <div className="font-bold">{r.date}</div>
+                              <div className="mt-1 text-slate-700 font-bold">{r.time}</div>
+                            </div>
                           </div>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${r.tint}`}><I n={r.icon} c="h-5 w-5 text-slate-700"/></div>
-                            <div className="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">{r.reward}</div>
-                            <div className="rounded-full bg-cyan-500 p-2.5 text-white shadow-sm"><I n="ChevronRight" c="h-5 w-5"/></div>
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${r.tint}`}><I n={r.icon} c="h-4 w-4 text-slate-600"/></div>
+                              <span className="text-[14px] font-bold text-slate-700">{r.reward}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-brand-600 font-bold text-[13px]">Dettagli <I n="ChevronRight" c="h-4 w-4"/></div>
                           </div>
                         </div>
                       </div>
@@ -243,12 +316,11 @@
               ))}
             </div>
           </div>
-          <BottomNav active="home" onChange={t=>{if(t==='profile')onProfile();}}/>
-        </div>
+        </AppShell>
       );
     }
 
-    function RequestDetails({ request, onBack, onMessage }) {
+    function RequestDetails({ request, onBack, onMessage, onNav }) {
       const [aiAnalysis, setAiAnalysis] = useState('');
       const [isAnalyzing, setIsAnalyzing] = useState(false);
       const analyzeJob = async () => {
@@ -257,59 +329,75 @@
         setAiAnalysis(result); setIsAnalyzing(false);
       };
       return (
-        <div className={wrap}><StatusBar />
-          <div className={pad}>
-            <div className="flex items-center justify-between">
-              <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><I n="ChevronLeft" c="h-6 w-6 text-slate-700"/></button>
-              <div className="text-lg font-bold text-slate-800">Dettaglio richiesta</div><div className="w-10"/>
+        <AppShell activeNav="home" onNav={onNav}>
+          <StatusBar />
+          <div className="px-4 pt-2 pb-4">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={onBack} className="rounded-full bg-white p-2.5 shadow-sm border border-slate-100"><I n="ChevronLeft" c="h-5 w-5 text-slate-700"/></button>
+              <Logo size={40} />
+              <div className="w-10"/>
             </div>
-            <Card className="mt-6 overflow-hidden rounded-[32px] border-0 bg-white shadow-lg mb-6">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Badge className={`${request.tint} rounded-full px-3 py-1 text-sm font-bold text-slate-700 border-0 mb-3`}>{request.category}</Badge>
-                    <div className="text-[28px] leading-tight font-bold text-slate-800">{request.title}</div>
-                    <div className="mt-2 flex items-center gap-1.5 text-[15px] text-slate-500"><I n="MapPin" c="h-4 w-4"/> {request.address}</div>
-                  </div>
-                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${request.tint} shrink-0`}><I n={request.icon} c="h-7 w-7 text-slate-700"/></div>
-                </div>
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-slate-500 mb-1.5"><I n="Clock3" c="h-4 w-4"/> Data e ora</div><div className="font-bold text-slate-800 text-[15px]">{request.date} · {request.time}</div></div>
-                  <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4"><div className="flex items-center gap-2 text-[13px] font-semibold text-slate-500 mb-1.5"><I n="CreditCard" c="h-4 w-4"/> Compenso</div><div className="font-bold text-slate-800 text-[15px]">{request.reward}</div></div>
-                </div>
-                <div className="mt-5 rounded-2xl bg-slate-50 p-5 border border-slate-100">
-                  <div className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">Descrizione</div>
-                  <div className="text-[15px] leading-relaxed text-slate-700">{request.description}</div>
-                </div>
-                <div className="mt-4 relative">
-                  {!aiAnalysis&&!isAnalyzing ? (
-                    <button onClick={analyzeJob} className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-cyan-50 to-indigo-50 border border-cyan-100 rounded-2xl text-cyan-700 font-bold hover:bg-cyan-100 transition shadow-sm cursor-pointer"><I n="Sparkles" c="h-5 w-5"/> ✨ Analizza Intervento</button>
-                  ) : (
-                    <div className="p-5 bg-gradient-to-br from-cyan-500 to-indigo-600 rounded-2xl text-white shadow-md relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-xl" style={{transform:'translate(40px,-40px)'}}/>
-                      <div className="flex items-center gap-2 font-bold mb-3 relative z-10"><I n="Sparkles" c="h-5 w-5 text-cyan-200"/> Attrezzatura Consigliata</div>
-                      {isAnalyzing ? <div className="flex items-center gap-3 text-cyan-100 relative z-10 py-2"><Spinner/> Analizzando la richiesta...</div>
-                       : <div className="text-[14px] leading-relaxed whitespace-pre-line relative z-10 text-cyan-50">{aiAnalysis}</div>}
-                    </div>
-                  )}
-                </div>
-                <div className="mt-5 flex items-center gap-4 rounded-2xl bg-[#eef5fc] p-4 border border-[#d6e6f5]">
-                  <Avatar className="h-12 w-12 border-2 border-white shadow-sm"><AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold">MR</AvatarFallback></Avatar>
-                  <div><div className="font-bold text-slate-800 text-[15px]">Martina R.</div><div className="text-sm text-slate-500 font-medium">Cliente · online ora</div></div>
-                </div>
-                <div className="mt-8 grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="h-14 rounded-2xl border-slate-200 text-slate-600 font-bold text-[15px]">Rifiuta</Button>
-                  <Button onClick={onMessage} className="h-14 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-[15px] shadow-md">Contatta</Button>
-                </div>
-                <Button className="mt-3 h-14 w-full rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-[15px] shadow-lg">Accetta lavoro</Button>
+
+            {/* Title Section */}
+            <div className="text-center mb-5">
+              <div className="text-[24px] font-black text-slate-800 leading-tight">{request.title}</div>
+              <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[14px] text-slate-500"><I n="MapPin" c="h-4 w-4 text-brand-500"/> {request.address}</div>
+            </div>
+
+            {/* Info Row */}
+            <div className="flex gap-3 mb-4">
+              <Card className="flex-1 border border-slate-100"><CardContent className="flex items-center gap-3 py-3"><I n="Calendar" c="h-5 w-5 text-brand-500"/><div><div className="text-[11px] font-bold text-slate-400 uppercase">Data</div><div className="font-bold text-slate-800 text-[14px]">{request.date}</div></div></CardContent></Card>
+              <Card className="flex-1 border border-slate-100"><CardContent className="flex items-center gap-3 py-3"><I n="Star" c="h-5 w-5 text-amber-400" f="rgb(251,191,36)"/><div><div className="text-[11px] font-bold text-slate-400 uppercase">Orario</div><div className="font-bold text-slate-800 text-[14px]">{request.time}</div></div></CardContent></Card>
+            </div>
+
+            {/* Description */}
+            <Card className="mb-4 border border-slate-100">
+              <CardContent className="py-4">
+                <div className="text-[12px] font-black uppercase tracking-wider text-slate-400 mb-2">Descrizione</div>
+                <div className="text-[15px] leading-relaxed text-slate-700">{request.description}</div>
               </CardContent>
             </Card>
+
+            {/* AI Feature */}
+            <div className="mb-4">
+              {!aiAnalysis && !isAnalyzing ? (
+                <button onClick={analyzeJob} className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-brand-50 to-indigo-50 border-2 border-dashed border-brand-200 rounded-2xl text-brand-700 font-bold hover:bg-brand-100 transition shadow-sm cursor-pointer">
+                  <I n="Sparkles" c="h-5 w-5"/> ✨ Analizza Intervento
+                </button>
+              ) : (
+                <div className="p-5 bg-gradient-to-br from-brand-500 to-indigo-600 rounded-2xl text-white shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl" style={{transform:'translate(40px,-40px)'}}/>
+                  <div className="flex items-center gap-2 font-bold mb-3 relative z-10"><I n="Sparkles" c="h-5 w-5 text-brand-200"/> Attrezzatura Consigliata</div>
+                  {isAnalyzing ? <div className="flex items-center gap-3 text-brand-100 relative z-10 py-2"><Spinner/> Analizzando...</div>
+                   : <div className="text-[14px] leading-relaxed whitespace-pre-line relative z-10 text-white/90">{aiAnalysis}</div>}
+                </div>
+              )}
+            </div>
+
+            {/* Client */}
+            <Card className="mb-5 border border-slate-100">
+              <CardContent className="flex items-center gap-4 py-3">
+                <Avatar className="h-12 w-12 border-2 border-brand-100 shadow-sm"><AvatarFallback className="bg-brand-50 text-brand-700 font-bold">MR</AvatarFallback></Avatar>
+                <div className="flex-1"><div className="font-bold text-slate-800">Martina R.</div><div className="text-[13px] text-slate-500 font-medium">Cliente · online ora</div></div>
+                <div className="flex gap-2">
+                  <button className="rounded-full bg-brand-50 p-2.5"><I n="Phone" c="h-4 w-4 text-brand-600"/></button>
+                  <button onClick={onMessage} className="rounded-full bg-brand-50 p-2.5"><I n="MessageSquare" c="h-4 w-4 text-brand-600"/></button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Button variant="outline" className="h-14">Rifiuta</Button>
+              <Button className="h-14 shadow-md shadow-brand-500/20">Accetta</Button>
+            </div>
           </div>
-        </div>
+        </AppShell>
       );
     }
 
-    function MessagesScreen({ request, onBack }) {
+    function MessagesScreen({ request, onBack, onNav }) {
       const [messages, setMessages] = useState([
         { id:1, side:'left', text:"Buongiorno, il salvavita scatta continuamente da questa mattina." },
         { id:2, side:'right', text:"Buongiorno Martina, posso passare entro le 10:45 per verificare il quadro." },
@@ -327,124 +415,163 @@
         setInputText(reply.replace(/^["']|["']$/g,'').trim()); setIsGenerating(false);
       };
       return (
-        <div className={wrap}><StatusBar />
-          <div className="flex flex-col h-[844px]">
-            <div className="flex items-center gap-4 px-4 pb-4 pt-4 border-b border-slate-200/60 bg-white/50 backdrop-blur-md shrink-0 z-10">
-              <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><I n="ChevronLeft" c="h-6 w-6 text-slate-700"/></button>
-              <Avatar className="h-10 w-10 border border-slate-100"><AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold">MR</AvatarFallback></Avatar>
-              <div><div className="font-bold text-slate-800 text-[15px]">Martina R.</div><div className="text-[13px] font-medium text-slate-500">{request.title}</div></div>
-            </div>
-            <div className="flex-1 space-y-4 px-4 py-6 overflow-y-auto bg-slate-100/50" ref={scrollRef}>
-              {messages.map(m=>{const r=m.side==='right';return(<div key={m.id} className={`flex ${r?'justify-end':'justify-start'}`}><div className={`max-w-[80%] rounded-[20px] px-4 py-3 text-[15px] leading-relaxed shadow-sm ${r?'bg-cyan-500 text-white rounded-br-sm':'bg-white text-slate-700 rounded-bl-sm border border-slate-100'}`}>{m.text}</div></div>);})}
-              {isGenerating&&<div className="flex justify-end"><div className="max-w-[80%] rounded-[20px] px-5 py-4 shadow-sm bg-cyan-500 text-white rounded-br-sm flex items-center gap-2"><Spinner/><span className="text-sm font-medium">L'IA sta scrivendo...</span></div></div>}
-              <div className="h-20"/>
-            </div>
-            <div className="border-t border-slate-200 bg-white p-4 absolute bottom-[80px] w-full z-10">
-              <div className="rounded-full border border-slate-200 bg-slate-50 p-1.5 shadow-sm flex items-center">
-                <button onClick={generateReply} disabled={isGenerating} className="rounded-full p-2.5 text-cyan-500 hover:bg-cyan-100 transition disabled:opacity-50 cursor-pointer"><I n="Sparkles" c="h-5 w-5"/></button>
-                <Input className="border-0 bg-transparent shadow-none focus-visible:ring-0 px-2 text-[15px] flex-1" placeholder="Scrivi un messaggio..." value={inputText} onChange={e=>setInputText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSend()}/>
-                <button onClick={handleSend} className="rounded-full bg-cyan-500 p-3 text-white shadow-sm hover:bg-cyan-600 transition cursor-pointer"><I n="Send" c="h-4 w-4"/></button>
-              </div>
+        <div className="w-full h-full flex flex-col bg-app">
+          {/* Header */}
+          <div className="bg-frost border-b border-slate-200/60 shrink-0 z-20">
+            <StatusBar />
+            <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+              <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm border border-slate-100"><I n="ChevronLeft" c="h-5 w-5 text-slate-700"/></button>
+              <Avatar className="h-10 w-10 border-2 border-brand-100"><AvatarFallback className="bg-brand-50 text-brand-700 font-bold text-sm">MR</AvatarFallback></Avatar>
+              <div className="flex-1"><div className="font-bold text-slate-800 text-[15px]">Martina R.</div><div className="text-[12px] font-medium text-brand-500">{request.title}</div></div>
             </div>
           </div>
-          <BottomNav active="messages"/>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" ref={scrollRef}>
+            {messages.map(m=>{
+              const r = m.side==='right';
+              return (
+                <div key={m.id} className={`flex ${r?'justify-end':'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-[20px] px-4 py-3 text-[15px] leading-relaxed shadow-sm ${r?'bg-brand-500 text-white rounded-br-md':'bg-white text-slate-700 rounded-bl-md border border-slate-100'}`}>{m.text}</div>
+                </div>
+              );
+            })}
+            {isGenerating && <div className="flex justify-end"><div className="rounded-[20px] px-5 py-3 bg-brand-500 text-white rounded-br-md flex items-center gap-2 shadow-sm"><Spinner/><span className="text-sm">Scrivendo...</span></div></div>}
+          </div>
+
+          {/* Input */}
+          <div className="bg-frost border-t border-slate-200/60 px-4 py-3 safe-bottom shrink-0">
+            <div className="rounded-full border border-slate-200 bg-white p-1.5 shadow-sm flex items-center">
+              <button onClick={generateReply} disabled={isGenerating} className="rounded-full p-2.5 text-brand-500 hover:bg-brand-50 transition disabled:opacity-50 cursor-pointer"><I n="Sparkles" c="h-5 w-5"/></button>
+              <input className="flex-1 bg-transparent px-2 text-[15px] outline-none placeholder:text-slate-400" placeholder="Scrivi un messaggio..." value={inputText} onChange={e=>setInputText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSend()}/>
+              <button onClick={handleSend} className="rounded-full bg-brand-500 p-3 text-white shadow-sm hover:bg-brand-600 transition cursor-pointer"><I n="Send" c="h-4 w-4"/></button>
+            </div>
+          </div>
         </div>
       );
     }
 
-    function ProfileScreen({ onBack, onLevels }) {
+    function ProfileScreen({ onBack, onLevels, onNav }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className={pad}>
-            <div className="flex items-center justify-between">
-              <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><I n="ChevronLeft" c="h-6 w-6 text-slate-700"/></button>
-              <div className="text-lg font-bold text-slate-800">Profilo</div>
-              <button className="rounded-full bg-white p-2 shadow-sm"><I n="Settings" c="h-5 w-5 text-slate-700"/></button>
-            </div>
-            <div className="mt-6 overflow-hidden rounded-[32px] p-6 text-white shadow-lg relative" style={{background:'linear-gradient(180deg,rgba(30,64,175,0.85),rgba(34,211,238,0.7))'}}>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" style={{transform:'translate(40px,-40px)'}}/>
-              <div className="flex items-center gap-5 relative z-10">
-                <Avatar className="h-20 w-20 border-[3px] border-white shadow-md"><AvatarFallback className="bg-white text-2xl font-bold text-cyan-700">TR</AvatarFallback></Avatar>
-                <div>
-                  <div className="text-2xl font-bold tracking-tight">Teo Rossi</div>
-                  <div className="mt-1 text-[14px] font-medium text-white/90">Elettricista · Pescara, Abruzzo</div>
-                  <div className="mt-2.5 flex items-center gap-1 text-yellow-300">
-                    {[1,2,3,4,5].map(i=><I key={i} n="Star" c="h-4 w-4" f="currentColor"/>)}<span className="ml-1.5 text-[13px] font-medium text-white">4.9 · 245 recensioni</span>
-                  </div>
-                </div>
+        <AppShell activeNav="profile" onNav={onNav}>
+          <div className="relative h-52 overflow-hidden" style={{background:'linear-gradient(135deg,#0e7490,#06b6d4)'}}>
+            <StatusBar light />
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-app rounded-t-[28px]" />
+            <div className="flex items-center gap-4 px-6 pt-4">
+              <Avatar className="h-20 w-20 border-[3px] border-white shadow-lg"><AvatarFallback className="bg-white text-2xl font-black text-brand-700">MR</AvatarFallback></Avatar>
+              <div>
+                <div className="text-2xl font-black text-white tracking-tight">Marco Rossi</div>
+                <div className="text-[14px] font-medium text-white/80">Elettricista · Pescara, Abruzzo</div>
               </div>
-              <Button className="mt-6 h-12 w-full rounded-full bg-white text-cyan-700 hover:bg-slate-50 font-bold text-[14px] shadow-sm relative z-10">Modifica profilo</Button>
             </div>
-            <div className="mt-6 space-y-3">
-              {[{i:'Trophy',t:'Livelli Pro',s:'Sblocca più visibilità e più lavori',click:onLevels},{i:'ShieldCheck',t:'Valutazione',s:'Eccellente · 4.9 stelle'},{i:'FileCheck',t:'Informazioni personali',s:'Documenti, certificazioni e assicurazione'},{i:'BadgeCheck',t:'Attività',s:'Cronologia lavori completati'},{i:'CreditCard',t:'Guadagni',s:'Metodo di pagamento e riepilogo'}].map(r=>(
-                <button key={r.t} onClick={r.click} className="flex w-full items-center justify-between rounded-[24px] bg-white p-4 text-left shadow-sm border border-slate-100 transition hover:shadow-md active:scale-[0.98] cursor-pointer">
-                  <div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef5fc]"><I n={r.i} c="h-5 w-5 text-cyan-600"/></div><div><div className="font-bold text-slate-800 text-[15px]">{r.t}</div><div className="text-[13px] font-medium text-slate-500 mt-0.5">{r.s}</div></div></div>
+          </div>
+          <div className="px-4 -mt-1 pb-4">
+            <Button variant="outline" className="w-full h-12 mb-5 bg-white border-slate-200"><I n="Pencil" c="h-4 w-4 mr-2"/> Modifica profilo</Button>
+
+            {/* Rating Card */}
+            <Card className="mb-3 border border-slate-100">
+              <CardContent className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3"><div className="bg-amber-50 p-2.5 rounded-2xl"><I n="Star" c="h-5 w-5 text-amber-500" f="rgb(245,158,11)"/></div><div><div className="font-bold text-slate-800">Valutazione</div><div className="text-[13px] text-slate-500">from 245 recensioni</div></div></div>
+                <div className="text-2xl font-black text-slate-800">4.9<span className="text-amber-400 text-lg ml-0.5">★</span></div>
+              </CardContent>
+            </Card>
+
+            {/* Menu Items */}
+            <div className="space-y-2">
+              {[
+                {i:'Trophy',t:'Livelli Pro',s:'Sblocca più visibilità',click:onLevels},
+                {i:'FileCheck',t:'Informazioni personali',s:'Documenti e certificazioni'},
+                {i:'BadgeCheck',t:'Attività',s:'Cronologia lavori completati'},
+                {i:'CreditCard',t:'Guadagni',s:'Metodo di pagamento'}
+              ].map(r=>(
+                <button key={r.t} onClick={r.click} className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left shadow-sm border border-slate-100 transition hover:shadow-md active:scale-[0.98] cursor-pointer">
+                  <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50"><I n={r.i} c="h-5 w-5 text-brand-600"/></div><div><div className="font-bold text-slate-800 text-[15px]">{r.t}</div><div className="text-[13px] text-slate-500 mt-0.5">{r.s}</div></div></div>
                   <I n="ChevronRight" c="h-5 w-5 text-slate-300"/>
                 </button>
               ))}
             </div>
           </div>
-          <BottomNav active="profile"/>
-        </div>
+        </AppShell>
       );
     }
 
-    function LevelsScreen({ onBack }) {
+    function LevelsScreen({ onBack, onNav }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className={pad}>
-            <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><I n="ChevronLeft" c="h-6 w-6 text-slate-700"/></button>
-            <div className="mt-4 text-center px-2">
-              <div className="text-[28px] font-black text-slate-800 leading-tight">Livelli professionista</div>
-              <p className="mx-auto mt-2 max-w-[320px] text-[15px] leading-relaxed text-slate-600 font-medium">Ottieni nuovi livelli completando il tuo profilo da professionista e costruendo affidabilità.</p>
+        <AppShell activeNav="profile" onNav={onNav}>
+          <StatusBar />
+          <div className="px-4 pt-2 pb-4">
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={onBack} className="rounded-full bg-white p-2.5 shadow-sm border border-slate-100"><I n="ChevronLeft" c="h-5 w-5 text-slate-700"/></button>
+              <Logo size={36} />
             </div>
-            <div className="mt-8 rounded-[32px] p-6 text-center shadow-sm border border-sky-100" style={{background:'radial-gradient(circle at top,rgba(186,230,253,0.7),white 55%)'}}>
-              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-white shadow-md relative"><div className="absolute inset-2 rounded-full bg-cyan-100 shadow-inner flex items-center justify-center"><I n="Trophy" c="h-12 w-12 text-cyan-600"/></div></div>
-              <div className="mt-5 inline-flex rounded-full bg-cyan-500 px-6 py-1.5 text-[15px] font-bold text-white shadow-sm">Livello 2</div>
-              <div className="mt-4 text-[13px] font-bold text-slate-500 uppercase tracking-wider">Progresso completamento</div>
-              <div className="mt-2 text-cyan-500"><Progress value={46} className="h-2.5 rounded-full"/></div>
+            <div className="text-center mb-6">
+              <div className="text-[24px] font-black text-slate-800">Livelli professionista</div>
+              <p className="mt-1 text-[14px] text-slate-500 font-medium">Ottieni nuovi livelli completando il tuo profilo da professionista.</p>
             </div>
-            <div className="mt-6 space-y-4">
+
+            {/* Level Badge */}
+            <div className="rounded-[28px] p-6 text-center mb-6 bg-gradient-to-br from-brand-50 to-sky-50 border border-brand-100">
+              <div className="mx-auto w-24 h-24 rounded-full bg-white shadow-lg flex items-center justify-center mb-4"><I n="Trophy" c="h-12 w-12 text-brand-600"/></div>
+              <Badge className="bg-brand-500 text-white text-[15px] px-5 py-1.5 shadow-sm">LIVELLO 2</Badge>
+              <div className="mt-4 px-8"><Progress value={46} className="h-2.5 rounded-full"/></div>
+            </div>
+
+            {/* Level Steps */}
+            {/* Progress Bar */}
+            <div className="flex items-center justify-center gap-0 mb-6 px-6">
+              {[1,2,3,4,5].map((s,i)=>(
+                <Fragment key={s}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0 ${s<=2?'bg-brand-500 text-white':'bg-slate-200 text-slate-500'}`}>{s}</div>
+                  {i<4 && <div className={`flex-1 h-1 ${s<2?'bg-brand-500':'bg-slate-200'}`}/>}
+                </Fragment>
+              ))}
+            </div>
+
+            {/* Level Cards */}
+            <div className="space-y-3">
               {levels.map(lv=>(
-                <Card key={lv.id} className={`rounded-[24px] border border-slate-100 shadow-sm overflow-hidden ${lv.id===2?'text-white':'bg-white'}`} style={lv.id===2?{background:'linear-gradient(135deg,#0097b2,#007b91)'}:{}}>
-                  <CardContent className="flex items-start gap-4 p-5 pt-5">
-                    <div className={`mt-0.5 flex h-12 w-12 items-center justify-center rounded-2xl shrink-0 ${lv.id===2?'bg-white/20':'bg-slate-50 border border-slate-100'}`}>
-                      {lv.done?<I n="CircleCheck" c={`h-6 w-6 ${lv.id===2?'text-white':'text-emerald-500'}`}/>:lv.locked?<I n="Lock" c={`h-5 w-5 ${lv.id===2?'text-white':'text-slate-400'}`}/>:<I n="ShieldCheck" c={`h-6 w-6 ${lv.id===2?'text-white':'text-cyan-500'}`}/>}
+                <Card key={lv.id} className={`overflow-hidden border ${lv.id===2?'border-brand-300':'border-slate-100'} ${lv.id===2?'text-white':''}`} style={lv.id===2?{background:'linear-gradient(135deg,#0891b2,#0e7490)'}:{}}>
+                  <CardContent className="flex items-start gap-3 py-4">
+                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl shrink-0 ${lv.id===2?'bg-white/20':'bg-slate-50'}`}>
+                      {lv.done?<I n="CircleCheck" c={`h-5 w-5 ${lv.id===2?'text-white':'text-emerald-500'}`}/>:lv.locked?<I n="Lock" c={`h-4 w-4 ${lv.id===2?'text-white':'text-slate-400'}`}/>:<I n="ShieldCheck" c={`h-5 w-5 ${lv.id===2?'text-white':'text-brand-500'}`}/>}
                     </div>
                     <div className="flex-1">
-                      <div className={`text-lg font-bold ${lv.id===2?'text-white':'text-slate-800'}`}>{lv.title}</div>
-                      <div className={`mt-1 text-[13px] leading-relaxed font-medium ${lv.id===2?'text-white/90':'text-slate-500'}`}>{lv.text}</div>
-                      {lv.done&&<Badge className="mt-3 rounded-full bg-emerald-100 text-emerald-700 font-bold border-0 px-3">Completato</Badge>}
-                      {lv.cta&&<Button className="mt-3 h-10 px-5 rounded-full bg-white text-cyan-700 hover:bg-slate-50 font-bold text-[13px] shadow-sm">{lv.cta}</Button>}
+                      <div className="flex items-center justify-between">
+                        <div className={`text-[16px] font-bold ${lv.id===2?'text-white':'text-slate-800'}`}>{lv.title}</div>
+                        {lv.done && <Badge className="bg-emerald-100 text-emerald-700 text-[11px]">Completato</Badge>}
+                        {lv.locked && <I n="Lock" c={`h-4 w-4 ${lv.id===2?'text-white/60':'text-slate-300'}`}/>}
+                      </div>
+                      <div className={`mt-1 text-[13px] leading-relaxed ${lv.id===2?'text-white/80':'text-slate-500'}`}>{lv.text}</div>
+                      {lv.cta && <Button className={`mt-3 h-9 px-5 rounded-full text-[13px] ${lv.id===2?'bg-white text-brand-700 hover:bg-slate-50':'bg-brand-500 text-white'}`}>{lv.cta}</Button>}
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
-          <BottomNav active="profile"/>
-        </div>
+        </AppShell>
       );
     }
 
-    function NotificationsScreen({ onBack, onOpenRequest }) {
+    function NotificationsScreen({ onBack, onOpenRequest, onNav }) {
       return (
-        <div className={wrap}><StatusBar />
-          <div className={pad}>
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200/50">
-              <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><I n="ChevronLeft" c="h-6 w-6 text-slate-700"/></button>
-              <div className="text-lg font-bold text-slate-800">Notifiche</div>
-              <button className="rounded-full bg-white p-2 shadow-sm"><I n="Bell" c="h-5 w-5 text-cyan-500"/></button>
+        <AppShell activeNav="home" onNav={onNav}>
+          <StatusBar />
+          <div className="px-4 pt-2 pb-4">
+            <div className="flex items-center justify-between mb-5">
+              <button onClick={onBack} className="rounded-full bg-white p-2.5 shadow-sm border border-slate-100"><I n="ChevronLeft" c="h-5 w-5 text-slate-700"/></button>
+              <div className="text-lg font-black text-slate-800">Notifiche</div>
+              <button className="rounded-full bg-white p-2.5 shadow-sm border border-slate-100"><I n="Bell" c="h-5 w-5 text-brand-500"/></button>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               {requests.map((r,idx)=>(
                 <button key={r.id} onClick={()=>onOpenRequest(r)} className="w-full text-left">
-                  <Card className="rounded-[24px] border border-slate-100 bg-white shadow-sm transition hover:shadow-md">
-                    <CardContent className="flex items-center gap-4 p-4 pt-4">
-                      <Avatar className="h-12 w-12 border border-slate-100"><AvatarFallback className="bg-cyan-50 text-cyan-700 font-bold text-[15px]">{['MR','SM','RB'][idx]}</AvatarFallback></Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between gap-3 mb-0.5"><div className="font-bold text-slate-900 text-[15px]">{['Martina R.','Stefano M.','Roberto B.'][idx]}</div><div className="text-[11px] font-bold text-slate-400">{idx===2?'2 giorni fa':'2 minuti fa'}</div></div>
-                        <div className="text-[14px] font-bold text-slate-700 mb-0.5">{r.title}</div>
+                  <Card className="border border-slate-100 transition hover:shadow-md active:scale-[0.98]">
+                    <CardContent className="flex items-center gap-3 py-3">
+                      <Avatar className="h-12 w-12 border-2 border-brand-100"><AvatarFallback className="bg-brand-50 text-brand-700 font-bold text-[14px]">{['MR','SM','RB'][idx]}</AvatarFallback></Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5"><div className="font-bold text-slate-800 text-[15px]">{['Martina R.','Stefano M.','Roberto B.'][idx]}</div><div className="text-[11px] font-bold text-slate-400 shrink-0">{idx===2?'2 giorni fa':'2 minuti fa'}</div></div>
+                        <div className="text-[14px] font-bold text-slate-700">{r.title}</div>
                         <div className="text-[13px] text-slate-500 line-clamp-1">{r.address}</div>
                       </div>
                       <I n="ChevronRight" c="h-5 w-5 text-slate-300 shrink-0"/>
@@ -454,25 +581,25 @@
               ))}
             </div>
           </div>
-          <BottomNav active="home"/>
-        </div>
+        </AppShell>
       );
     }
 
+    // --- BOTTOM NAV (FIXED) ---
     function BottomNav({ active, onChange=()=>{} }) {
-      const items = [{key:'home',label:'Home',icon:'Home'},{key:'requests',label:'Richieste',icon:'Menu'},{key:'messages',label:'Messaggi',icon:'MessageSquare'},{key:'profile',label:'Profilo',icon:'User'}];
+      const items = [{key:'home',label:'Home',icon:'Home'},{key:'requests',label:'Richieste',icon:'MessageSquare'},{key:'notifications',label:'Notifiche',icon:'Bell'},{key:'profile',label:'Profilo',icon:'User'}];
       return (
-        <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[430px] border-t border-slate-200 bg-white/95 backdrop-blur-md rounded-b-[38px] z-50">
-          <div className="flex items-center justify-around px-3 py-3 pb-6 relative">
-            {items.map((it,i)=>{
-              const sel=active===it.key;
-              const btn=<button key={it.key} onClick={()=>onChange(it.key)} className={`flex flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-bold transition-colors cursor-pointer ${sel?'text-cyan-600':'text-slate-400 hover:text-slate-600'}`}><I n={it.icon} c="h-6 w-6" sw={sel?2.5:2}/><span>{it.label}</span></button>;
-              if(i===2) return <Fragment key="sp"><div className="w-16"/>{btn}</Fragment>;
-              return btn;
+        <div className="absolute bottom-0 left-0 right-0 bg-frost border-t border-slate-200/60 z-50 safe-bottom">
+          <div className="flex items-center justify-around px-2 pt-2 pb-1">
+            {items.map(it=>{
+              const sel = active===it.key;
+              return (
+                <button key={it.key} onClick={()=>onChange(it.key)} className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-2xl transition-all cursor-pointer ${sel?'text-brand-600':'text-slate-400'}`}>
+                  <div className={`p-1.5 rounded-xl transition-all ${sel?'bg-brand-50':''}`}><I n={it.icon} c="h-5 w-5" sw={sel?2.5:1.8} f={sel&&it.icon==='Home'?'rgb(236,254,255)':'none'}/></div>
+                  <span className={`text-[10px] font-bold ${sel?'text-brand-600':'text-slate-400'}`}>{it.label}</span>
+                </button>
+              );
             })}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-6">
-              <button className="rounded-full bg-cyan-500 p-4 text-white shadow-lg border-4 border-white hover:bg-cyan-600 transition-transform hover:scale-105 active:scale-95 cursor-pointer"><I n="Plus" c="h-7 w-7" sw={2.5}/></button>
-            </div>
           </div>
         </div>
       );
@@ -485,26 +612,33 @@
       const [authTab, setAuthTab] = useState('login');
       const go = s => setScreen(s);
 
+      const handleNav = (tab) => {
+        if (tab==='home') go('home');
+        else if (tab==='profile') go('profile');
+        else if (tab==='notifications') go('notifications');
+        else if (tab==='requests') go('home');
+      };
+
       const S = () => {
         switch(screen) {
           case 'splash': return <SplashScreen onNext={()=>go('auth')}/>;
           case 'auth': return <AuthScreen authTab={authTab} setAuthTab={setAuthTab} onContinue={()=>go('onboarding1')}/>;
           case 'onboarding1': return <OnboardingStep step={1} title="Benvenuto nell'app per tecnici e professionisti" text="Trova richieste di lavoro vicino a te e gestisci i tuoi interventi." onNext={()=>go('onboarding2')}/>;
-          case 'onboarding2': return <OnboardingStep step={2} title="Rispondi alle richieste" text="Scorri le richieste nelle tue vicinanze e candidati ai lavori che sai risolvere." onNext={()=>go('onboarding3')}/>;
-          case 'onboarding3': return <OnboardingStep step={3} title="Completa il lavoro" text="Accetta il lavoro, completa l'intervento e ricevi subito la tua ricompensa." onNext={()=>go('home')} cta="Inizia"/>;
-          case 'home': return <HomeScreen onOpenRequest={r=>{setSel(r);go('request');}} onNotifications={()=>go('notifications')} onProfile={()=>go('profile')} onLevels={()=>go('levels')}/>;
-          case 'request': return <RequestDetails request={sel} onBack={()=>go('home')} onMessage={()=>go('messages')}/>;
-          case 'messages': return <MessagesScreen request={sel} onBack={()=>go('request')}/>;
-          case 'profile': return <ProfileScreen onBack={()=>go('home')} onLevels={()=>go('levels')}/>;
-          case 'levels': return <LevelsScreen onBack={()=>go('profile')}/>;
-          case 'notifications': return <NotificationsScreen onBack={()=>go('home')} onOpenRequest={r=>{setSel(r);go('request');}}/>;
+          case 'onboarding2': return <OnboardingStep step={2} title="Rispondi alle richieste" text="Scorri e rispondi alle richieste nelle tue vicinanze e offri la tua assistenza!" onNext={()=>go('onboarding3')}/>;
+          case 'onboarding3': return <OnboardingStep step={3} title="Completa il lavoro" text="Accetta il lavoro, completa l'intervento e ricevi subito la tua ricompensa!" onNext={()=>go('home')} cta="Inizia"/>;
+          case 'home': return <HomeScreen onOpenRequest={r=>{setSel(r);go('request');}} onNotifications={()=>go('notifications')} onProfile={()=>go('profile')} onLevels={()=>go('levels')} onNav={handleNav}/>;
+          case 'request': return <RequestDetails request={sel} onBack={()=>go('home')} onMessage={()=>go('messages')} onNav={handleNav}/>;
+          case 'messages': return <MessagesScreen request={sel} onBack={()=>go('request')} onNav={handleNav}/>;
+          case 'profile': return <ProfileScreen onBack={()=>go('home')} onLevels={()=>go('levels')} onNav={handleNav}/>;
+          case 'levels': return <LevelsScreen onBack={()=>go('profile')} onNav={handleNav}/>;
+          case 'notifications': return <NotificationsScreen onBack={()=>go('home')} onOpenRequest={r=>{setSel(r);go('request');}} onNav={handleNav}/>;
           default: return <SplashScreen onNext={()=>go('auth')}/>;
         }
       };
 
       return (
-        <div className="w-full h-screen max-w-[430px] mx-auto bg-white overflow-hidden relative">
-          <div key={screen} className="h-full overflow-y-auto no-scrollbar animate-fade-slide">{S()}</div>
+        <div className="w-full h-screen max-w-[430px] mx-auto bg-white overflow-hidden relative shadow-2xl">
+          <div key={screen} className="h-full animate-fade-slide">{S()}</div>
         </div>
       );
     }
